@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.*;
+import java.util.*;
 class TCPClient {
 
 public static void main(String argv[]) throws Exception
@@ -15,17 +16,16 @@ public static void main(String argv[]) throws Exception
         while (true) {
                 String fromServer = inFromServer.readLine();
                 if(fromServer != null) {
-                        System.out.println("RECEIVED FROM SERVER: " + fromServer);
-                        String response = processServerResponse(fromServer);
-                        if(!response.equals("")) {
-                                outToServer.writeBytes(response+"\n");
+                        System.out.println(fromServer);
+                        String toReturn = processServerResponse(fromServer);
+                        if(!toReturn.equals("")) {
+                                outToServer.writeBytes(toReturn+"\n");
                         }
                 }
         }
 
 
 }
-
 public static String processServerResponse(String sresponse) throws Exception {
         String toReturn= "";
         BufferedReader inFromUser = new BufferedReader(new InputStreamReader(System.in));
@@ -38,16 +38,6 @@ public static String processServerResponse(String sresponse) throws Exception {
                         System.out.println("Invalid Response.");
                 }
                 toReturn = name;
-        }
-        else if(sresponse.equals("Lmao")) {
-                String response = "";
-                try{
-                        response = inFromUser.readLine();
-                }
-                catch(IOException e) {
-                        System.out.println("Invalid Response.");
-                }
-                toReturn = response;
         }
         return toReturn;
 }

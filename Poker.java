@@ -37,11 +37,13 @@ public static board thisBoard;
 public static player[] players;
 public static int numPlayers;
 public static Socket[] joinedSockets;
+public static int roundNum;
+
 public Game(){
-        players = new player[8];
+        players = new player[2];
         numPlayers = 0;
         started = false;
-        joinedSockets = new Socket[8];
+        joinedSockets = new Socket[2];
 }
 public synchronized void addPlayer(player newPlayer, Socket playerSocket){
         if(started == false) {
@@ -49,16 +51,39 @@ public synchronized void addPlayer(player newPlayer, Socket playerSocket){
                 joinedSockets[numPlayers] = playerSocket;
                 numPlayers++;
                 System.out.println("Player "+newPlayer.getName()+" has joined.\n");
-                broadcast("Player "+newPlayer.getName()+"has joined.\n");
+                broadcast("Player "+newPlayer.getName()+" has joined.\n");
+                if(numPlayers>1) {
+                        broadcast("2 players have joined. Game is starting\n");
+                        startGame();
+                }
+                else if(numPlayers == 1) {
+                        broadcast("Waiting for the second player.\n");
+                }
         }
         else {
-                System.out.println("Game has already started.");
+                System.out.println("Game has already started."+Player.CRLF);
         }
 }
-public synchronized void startGame(){
+public void startGame(){
         thisBoard = new board(players);
         started = true;
-        System.out.println("The game has started.");
+        broadcast("The game has started."+Player.CRLF);
+        for(int i=0; i<numPlayers; i++) {
+                for(int j=0; j<2; j++) {
+                        card newCard = new card();
+                        players[i].assignHand(j,newCard);
+                }
+                unicast(i, players[i].printHand());
+        }
+
+}
+public static void unicast(int playerId, String toUnicast){
+        try {
+                DataOutputStream os = new DataOutputStream(joinedSockets[playerId].getOutputStream());
+                os.writeBytes(toUnicast+"\n");
+        } catch (Exception e) {
+                System.out.println(e);
+        }
 }
 public static void broadcast(String toBroadcast){
         for(int i=0; i<numPlayers; i++) {
@@ -99,20 +124,17 @@ private void listenToPlayer() throws Exception {
         BufferedReader br = new BufferedReader(new InputStreamReader(is));
         os.writeBytes("What is your name?\n");
         String name = br.readLine();
+        System.out.println("Name: "+name);
         thisPlayer = new player(socket.getInetAddress().getHostAddress(),name);
-        game.addPlayer(thisPlayer, socket);
         os.writeBytes("You have successfully joined the game.\n");
+        game.addPlayer(thisPlayer, socket);
         boolean close = false;
         while(true) {
                 String response = br.readLine();
                 System.out.print(response);
                 if(response.equals("quit")) {
-                        game.broadcast("Player "+thisPlayer.getName()+"has quit.");
+                        game.broadcast("Player "+thisPlayer.getName()+"has quit."+CRLF);
                         break;
-                }
-                else if(response.equals("start")) {
-                        game.broadcast("Player "+thisPlayer.getName()+"has started the game.");
-                        game.startGame();
                 }
         }
         os.close();

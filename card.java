@@ -13,7 +13,7 @@ public card(){
         suite = rand.nextInt(suiteUpperBound);
 }
 
-public void print(){
+public String print(){
         String toPrint = "";
         //Convert the card to a string.
         if(card==1 || card == 2 || card == 3 ||card == 4 ||card == 5 ||card == 6 ||card == 7 ||card == 8 ||card == 9) {
@@ -45,6 +45,6 @@ public void print(){
         else if(suite==3) {
                 toPrint = toPrint + "diamonds";
         }
-        System.out.println(toPrint);
+        return toPrint;
 }
 }

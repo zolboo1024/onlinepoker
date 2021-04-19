@@ -28,14 +28,22 @@ public void addACard(){
                 num++;
         }
 }
-public void printHand(){
-        System.out.println("Player "+name+" has:");
-        for(int i=0; i<num; i++) {
-                hand[i].print();
-        }
-        System.out.println();
+public String printHand(){
+        String toReturn = "Player "+name+" has: ";
+        toReturn += hand[0].print()+" and "+ hand[1].print();
+        return toReturn;
+}
+public void assignHand(int index, card thisCard){
+        hand[index] = thisCard;
+        num++;
 }
 public String getName(){
         return name;
+}
+public int getPool(){
+        return pool;
+}
+public void updatePool(int change){
+        pool = pool + change;
 }
 }
