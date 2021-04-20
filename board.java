@@ -9,13 +9,21 @@ private static card[] flipped;
 private static int num;
 //keep track of individual players.
 private static player[] players;
-
+private static int moneyOnTheTable;
 public board(player[] thisPlayers){
         flipped = new card[5];
         num = 0;
         players = thisPlayers;
 }
-
+public static int getMoneyOnTheTable(){
+        return moneyOnTheTable;
+}
+public static int setMoneyOnTheTable(int update){
+        moneyOnTheTable= update;
+}
+public static int getFlipped(){
+        return flipped;
+}
 public static void flipACard(){
         if(num==5) {
                 System.out.println("5 cards have already been flipped.");
@@ -26,11 +34,11 @@ public static void flipACard(){
                 num++;
         }
 }
-public static void printBoard(){
-        System.out.println("On the board:");
+public static String printBoard(){
+        String toReturn = "On the board: ";
         for(int i=0; i<num; i++) {
-                flipped[i].print();
+                toReturn += flipped[i]+" ";
         }
-        System.out.println();
+        return toReturn;
 }
 }

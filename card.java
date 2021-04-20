@@ -12,7 +12,12 @@ public card(){
         int suiteUpperBound = 4;
         suite = rand.nextInt(suiteUpperBound);
 }
-
+public int getSuite(){
+        return suite;
+}
+public int getCard(){
+        return card;
+}
 public String print(){
         String toPrint = "";
         //Convert the card to a string.

@@ -10,14 +10,31 @@ private int num;
 private String id;
 private int pool;
 private String name;
+private bool folded;
+private card[] combinedHand;
+private int points;
 public player(String thisId, String thisName){
         hand = new card[2];
         num = 0;
         id = thisId;
         pool = 800;
         name = thisName;
+        folded = false;
+        combinedHand = new card[7];
+        points = 0;
 }
-
+public int getPoints(){
+        return points;
+}
+public int setPoints(int newPoints){
+        points = newPoints;
+}
+public void fold(){
+        folded = true;
+}
+public bool checkFolded(){
+        return folded;
+}
 public void addACard(){
         if(num==2) {
                 System.out.println("Player "+name+" already has 2 cards.");
@@ -45,5 +62,13 @@ public int getPool(){
 }
 public void updatePool(int change){
         pool = pool + change;
+}
+public void combineHand(card[] toCombine){
+        for(int i=0; i<5; i++) {
+                combinedHand[i+2]=toCombine[i];
+        }
+}
+public card[] getCombinedHand(){
+        return combinedHand;
 }
 }
