@@ -10,7 +10,7 @@ private int num;
 private String id;
 private int pool;
 private String name;
-private bool folded;
+private boolean folded;
 private card[] combinedHand;
 private int points;
 public player(String thisId, String thisName){
@@ -26,13 +26,13 @@ public player(String thisId, String thisName){
 public int getPoints(){
         return points;
 }
-public int setPoints(int newPoints){
+public void setPoints(int newPoints){
         points = newPoints;
 }
 public void fold(){
         folded = true;
 }
-public bool checkFolded(){
+public boolean checkFolded(){
         return folded;
 }
 public void addACard(){
@@ -64,6 +64,8 @@ public void updatePool(int change){
         pool = pool + change;
 }
 public void combineHand(card[] toCombine){
+        combinedHand[0] = hand[0];
+        combinedHand[1] = hand[1];
         for(int i=0; i<5; i++) {
                 combinedHand[i+2]=toCombine[i];
         }

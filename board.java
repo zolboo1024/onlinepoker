@@ -18,10 +18,12 @@ public board(player[] thisPlayers){
 public static int getMoneyOnTheTable(){
         return moneyOnTheTable;
 }
-public static int setMoneyOnTheTable(int update){
+public static void setMoneyOnTheTable(int update){
         moneyOnTheTable= update;
 }
-public static int getFlipped(){
+public static card[] getFlipped(){
+        System.out.println("Flipped called");
+        System.out.println(flipped[0].print());
         return flipped;
 }
 public static void flipACard(){
@@ -35,9 +37,9 @@ public static void flipACard(){
         }
 }
 public static String printBoard(){
-        String toReturn = "On the board: ";
+        String toReturn = "On the board: \n";
         for(int i=0; i<num; i++) {
-                toReturn += flipped[i]+" ";
+                toReturn += flipped[i].print()+"\n";
         }
         return toReturn;
 }

@@ -18,6 +18,9 @@ public static void main(String argv[]) throws Exception
                 if(fromServer != null) {
                         System.out.println(fromServer);
                         String toReturn = processServerResponse(fromServer);
+                        if(toReturn.equals("0")) {
+                                break;
+                        }
                         if(!toReturn.equals("")) {
                                 outToServer.writeBytes(toReturn+"\n");
                         }
@@ -38,6 +41,19 @@ public static String processServerResponse(String sresponse) throws Exception {
                         System.out.println("Invalid Response.");
                 }
                 toReturn = name;
+        }
+        else if(sresponse.contains("Bet")) {
+                String bet = "";
+                try{
+                        bet = inFromUser.readLine();
+                }
+                catch(IOException e) {
+                        System.out.println("Invalid Response.");
+                }
+                toReturn = bet;
+        }
+        else if(sresponse.contains("Thank you for playing")) {
+                toReturn = "0";
         }
         return toReturn;
 }

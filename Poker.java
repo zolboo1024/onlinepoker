@@ -1,6 +1,18 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
+
+/*
+   A Poker game to be played on a server.
+   Run this file to start the server to listen for any players and
+   use the player.java file to join the server as a client.
+   At this time, this server can only accomodate two players.
+   Authors: Zolboo Erdenebaatar and Jessie Anker
+ */
+
+/*
+   Poker class simply starts the server and listen for any incoming requests.
+ */
 public final class Poker {
 public static int numPlayers;
 public static Game game;
@@ -15,15 +27,8 @@ public static void main(String argv[]) throws Exception
         while (true) {
                 // Listen for a TCP connection request.
                 Socket connection = socket.accept();
-                // // Construct an object to process the incoming request
-                // serveRequest request = new serveRequest(connection);
-                // // Create a new thread to process the request.
-                // Thread thread = new Thread(request);
-                // // Start the thread.
-                // thread.start();
-                // Construct an object to process the HTTP request message.
                 Player request = new Player(connection);
-                // Create a new thread to process the request.
+                // Create a new thread to process the player request.
                 Thread thread = new Thread(request);
                 // Start the thread.
                 thread.start();
@@ -31,6 +36,9 @@ public static void main(String argv[]) throws Exception
 }
 }
 
+/*
+   The Game class holds the logic of the current game.
+ */
 final class Game {
 public static boolean started;
 public static board thisBoard;
@@ -49,6 +57,7 @@ public Game(){
         joinedSockets = new Socket[2];
         winner = -1;
         roundWinner = -1;
+        roundNum = 1;
 }
 public synchronized void addPlayer(player newPlayer, Socket playerSocket){
         if(started == false) {
@@ -71,6 +80,7 @@ public synchronized void addPlayer(player newPlayer, Socket playerSocket){
 }
 public void startGame(){
         thisBoard = new board(players);
+        roundWinner = -1;
         int roundSum = 0;
         started = true;
         broadcast("The game has started."+Player.CRLF);
@@ -83,96 +93,170 @@ public void startGame(){
         }
         roundSum = betRound(roundSum);
         if(roundWinner != -1) {
-                finishRound(roundWinner);
+                finishRound(roundWinner, roundSum);
+                return;
         }
         broadcast("Flipping the first common card.\n");
         thisBoard.flipACard();
-        broadcast("On the board, we have: "+thisBoard.print()+"\n");
+        broadcast(thisBoard.printBoard()+"\n");
         broadcast("Flipping the second common card.\n");
         thisBoard.flipACard();
-        broadcast("On the board, we have: "+thisBoard.print()+"\n");
+        broadcast(thisBoard.printBoard()+"\n");
         roundSum = betRound(roundSum);
         if(roundWinner != -1) {
-                finishRound(roundWinner);
+                finishRound(roundWinner, roundSum);
+                return;
         }
         broadcast("Flipping the third common card.\n");
         thisBoard.flipACard();
-        broadcast("On the board, we have: "+thisBoard.print()+"\n");
+        broadcast(thisBoard.printBoard()+"\n");
         roundSum = betRound(roundSum);
         if(roundWinner != -1) {
-                finishRound(roundWinner);
+                finishRound(roundWinner, roundSum);
+                return;
         }
         broadcast("Flipping the fourth common card.\n");
         thisBoard.flipACard();
-        broadcast("On the board, we have: "+thisBoard.print()+"\n");
+        broadcast(thisBoard.printBoard()+"\n");
         roundSum = betRound(roundSum);
         if(roundWinner != -1) {
-                finishRound(roundWinner);
+                finishRound(roundWinner, roundSum);
+                return;
         }
         broadcast("Flipping the fifth common card.\n");
         thisBoard.flipACard();
-        broadcast("On the board, we have: "+thisBoard.print()+"\n");
+        broadcast(thisBoard.printBoard()+"\n");
         roundSum = betRound(roundSum);
         if(roundWinner != -1) {
-                finishRound(roundWinner);
+                finishRound(roundWinner, roundSum);
+                return;
         }
         //determine the winner through evaluation
+        //reveal the hands first
+        broadcast("Revealing the hands.\n");
+        for(int i=0; i<2; i++) {
+                broadcast(players[i].printHand());
+        }
+        card[] flipped = thisBoard.getFlipped();
+        System.out.println(flipped[0]);
         for(int i=0; i<numPlayers; i++) {
-                players[i].combineHand(thisBoard.getFlipped);
+                players[i].combineHand(thisBoard.getFlipped());
                 evaluate(i);
+        }
+        int lowest = 20;
+        int lowestId = 0;
+        for(int i=0; i<numPlayers; i++) {
+                if(lowest<players[i].getPoints()) {
+                        lowest = players[i].getPoints();
+                        lowestId = i;
+                }
+        }
+        roundWinner = lowestId;
+        finishRound(roundWinner, roundSum);
+        //
+}
+public void finishRound(int thisRoundWinner, int roundSum){
+        broadcast("Player "+players[thisRoundWinner].getName()+" has won the "+roundSum+" this round.\n");
+        players[thisRoundWinner].updatePool(roundSum);
+        int numPlayersWithCredits = 0;
+        int winner = 0;
+        for(int i=0; i<numPlayers; i++) {
+                if(players[i].getPool()!=0) {
+                        numPlayersWithCredits++;
+                        winner = i;
+                }
+        }
+        if(numPlayersWithCredits>1) {
+                roundNum++;
+                startGame();
+        }
+        else{
+                broadcast("Player "+players[winner].getName()+" has won the game. Thank you for playing.\n");
+                try{
+                        for(int i=0; i<numPlayers; i++) {
+                                joinedSockets[i].close();
+                        }
+                }
+                catch(Exception e) {
+                        System.out.println("Line 165");
+                }
         }
 }
 public void evaluate(int thisPlayer){
 
         //get combinedHand
         card[] thisHand = players[thisPlayer].getCombinedHand();
-
         //Royal flush
         if(evaluateIfRoyalFlush(thisHand)) {
                 players[thisPlayer].setPoints(1);
+                broadcast("Player "+players[thisPlayer].getName()+" has a Royal Flush.");
                 return;
         }
         //Straight flush
-        else if(evaluateIfStraightFlush(thisHand)) {
+        if(evaluateIfStraightFlush(thisHand)) {
                 players[thisPlayer].setPoints(2);
+                broadcast("Player "+players[thisPlayer].getName()+" has a Straight Flush.");
                 return;
         }
         //4 of a kind
         else if(evaluateIfFourOfaKind(thisHand)) {
                 players[thisPlayer].setPoints(3);
+                broadcast("Player "+players[thisPlayer].getName()+" has a Four of a Kind.");
                 return;
         }
         //full house
         else if(evaluateIfFullHouse(thisHand)) {
                 players[thisPlayer].setPoints(4);
+                broadcast("Player "+players[thisPlayer].getName()+" has a Full House.");
                 return;
         }
         //flush
         else if(evaluateIfFlush(thisHand)) {
                 players[thisPlayer].setPoints(6);
+                broadcast("Player "+players[thisPlayer].getName()+" has a Flush.");
                 return;
         }
         //straight
         else if(evaluateIfStraight(thisHand)) {
                 players[thisPlayer].setPoints(7);
+                broadcast("Player "+players[thisPlayer].getName()+" has a Straight.");
                 return;
         }
         //straight
         else if(evaluateIfTriple(thisHand)) {
-                players[thisPlayer].setPoints(7);
+                players[thisPlayer].setPoints(8);
+                broadcast("Player "+players[thisPlayer].getName()+" has a Triple.");
+                return;
+        }
+        //2 pair
+        else if(evaluateIfTwoPairs(thisHand)) {
+                players[thisPlayer].setPoints(9);
+                broadcast("Player "+players[thisPlayer].getName()+" has Two Pairs.");
+                return;
+        }
+        //pair
+        else if(evaluateIfPair(thisHand)) {
+                players[thisPlayer].setPoints(10);
+                broadcast("Player "+players[thisPlayer].getName()+" has a Pair.");
+                return;
+        }
+        //nothing for the players
+        else{
+                players[thisPlayer].setPoints(11);
+                broadcast("Player "+players[thisPlayer].getName()+" only has high cards.");
                 return;
         }
 }
-public bool evaluateIfRoyalFlush(card[] hand){
-        if(hand.evaluateContainsCard(0, hand) && hand.evaluateContainsCard(12, hand)
-           && hand.evaluateContainsCard(11, hand) && hand.evaluateContainsCard(10, hand) && hand.evaluateContainsCard(9, hand)) {
+public boolean evaluateIfRoyalFlush(card[] hand){
+        if(evaluateContainsCard(0, hand) && evaluateContainsCard(12, hand)
+           && evaluateContainsCard(11, hand) && evaluateContainsCard(10, hand) && evaluateContainsCard(9, hand)) {
                 return true;
         }
         else{
-                return 0;
+                return false;
         }
 }
-public bool evaluateIfStraightFlush(card[] hand){
+public boolean evaluateIfStraightFlush(card[] hand){
         if(evaluateIfFlush(hand) && evaluateIfStraight(hand)) {
                 return true;
         }
@@ -180,13 +264,13 @@ public bool evaluateIfStraightFlush(card[] hand){
                 return false;
         }
 }
-public bool evaluateIfFlush(card[] hand){
+public boolean evaluateIfFlush(card[] hand){
         for(int i=0; i<3; i++) {
                 int thisSuite = hand[i].getSuite();
                 int numSameSuites = 1;
                 for(int j=i+1; j<7; j++) {
                         if(hand[j].getSuite() == thisSuite) {
-                                numSameSuite++;
+                                numSameSuites++;
                         }
                 }
                 if(numSameSuites>=5) {
@@ -195,7 +279,7 @@ public bool evaluateIfFlush(card[] hand){
         }
         return false;
 }
-public bool evaluateIfFourOfaKind(card[] hand){
+public boolean evaluateIfFourOfaKind(card[] hand){
         for(int i=0; i<7; i++) {
                 int thisCard = hand[i].getCard();
                 if(evaluateContainsCombo(0, thisCard, hand) && evaluateContainsCombo(1, thisCard, hand)
@@ -205,9 +289,9 @@ public bool evaluateIfFourOfaKind(card[] hand){
         }
         return false;
 }
-public bool evaluateIfFullHouse(card[] hand){
-        int triple = false;
-        int doublE = false;
+public boolean evaluateIfFullHouse(card[] hand){
+        boolean triple = false;
+        boolean doublE = false;
         for(int i=0; i<7; i++) {
                 int thisCard = hand[i].getCard();
                 int sameNum = 0;
@@ -223,12 +307,12 @@ public bool evaluateIfFullHouse(card[] hand){
                         doublE = true;
                 }
         }
-        if(tripe&&doublE) {
+        if(triple&&doublE) {
                 return true;
         }
         return false;
 }
-public bool evaluateIfTriple(card[] hand){
+public boolean evaluateIfTriple(card[] hand){
         for(int i=0; i<7; i++) {
                 int thisCard = hand[i].getCard();
                 int sameNum = 0;
@@ -243,7 +327,7 @@ public bool evaluateIfTriple(card[] hand){
         }
         return false;
 }
-public bool evaluateIfTwoPairs(card[] hand){
+public boolean evaluateIfTwoPairs(card[] hand){
         int count = 0;
         for(int i=0; i<7; i++) {
                 int thisCard = hand[i].getCard();
@@ -262,7 +346,7 @@ public bool evaluateIfTwoPairs(card[] hand){
         }
         return false;
 }
-public bool evaluateIfPair(card[] hand){
+public boolean evaluateIfPair(card[] hand){
         for(int i=0; i<7; i++) {
                 int thisCard = hand[i].getCard();
                 int sameNum = 0;
@@ -277,7 +361,7 @@ public bool evaluateIfPair(card[] hand){
         }
         return false;
 }
-public bool evaluateIfStraight(card[] hand){
+public boolean evaluateIfStraight(card[] hand){
         for(int i=0; i<7; i++) {
                 int thisCard = hand[i].getCard();
                 if(evaluateContainsCard((thisCard+1)%12, hand) && evaluateContainsCard((thisCard+2)%12, hand)
@@ -287,16 +371,17 @@ public bool evaluateIfStraight(card[] hand){
         }
         return false;
 }
-public bool evaluateContainsCombo(int suite, int card, card[] hand){
-        if(evaluateContainsSuite(suite, card) && evaluateContainsCard(card, hand)) {
-                return true;
+public boolean evaluateContainsCombo(int suite, int card, card[] hand){
+        boolean found = false;
+        for(card each: hand) {
+                if(each.getCard()==card && each.getSuite()==suite) {
+                        found = true;
+                }
         }
-        else{
-                return false;
-        }
+        return found;
 }
-public bool evaluateContainsCard(int card, card[] hand){
-        bool found = false;
+public boolean evaluateContainsCard(int card, card[] hand){
+        boolean found = false;
         for(card each: hand) {
                 if(each.getCard()==card) {
                         found = true;
@@ -304,25 +389,20 @@ public bool evaluateContainsCard(int card, card[] hand){
         }
         return found;
 }
-public bool evaluateContainsSuite(int suite, card[] hand){
-        bool found = false;
+public boolean evaluateContainsSuite(int suite, card[] hand){
+        boolean found = false;
         for(card each: hand) {
-                if(each.getCard()==card) {
+                if(each.getSuite()==suite) {
                         found = true;
                 }
         }
         return found;
-}
-public void finishRound(int thisRoundWinner){
-        broadcast("Player "+players[thisRoundWinner]+"has won this round.");
-        players[roundWinner].updatePool(roundSum);
-
 }
 public int betRound(int roundSum){
         int currentBet = 0;
         int currentPool = roundSum; //make a copy
         for(int i=0; i<numPlayers; i++) {
-                if(numFolded+1==numPlayers && !players[i].checkFolded) {
+                if(numFolded+1==numPlayers && !players[i].checkFolded()) {
                         broadcast("Player "+players[i].getName()+" has won.\n");
                         roundWinner = i;
                         return currentPool;
@@ -330,27 +410,32 @@ public int betRound(int roundSum){
                 if(players[i].checkFolded() || players[i].getPool()<=0) {
                         continue;
                 }
-                broadcast("It is "+players[i]+"\'s turn.\n");
+                broadcast("It is "+players[i].getName()+"\'s turn.\n");
                 if(currentBet == 0) {
-                        unicast(i, "Bet, check or fold?\n");
-                        unicast(i, "You have "+players[i].getPool()+" credits.\n");
+                        unicast(i, "Bet, check or fold? You have "+players[i].getPool()+" credits.\n");
                 }
                 else {
-                        unicast(i, "Bet, call or fold? The current bet is "+currentBet+"\n");
-                        unicast(i, "You have "+players[i].getPool()+" credits.\n");
+                        unicast(i, "Bet, call or fold? The current bet is "+currentBet+" and you have "+players[i].getPool()+" credits.\n");
                 }
-                // Get a reference to the socket's input and output streams.
-                InputStream is = joinedSockets[i].getInputStream();
-                BufferedReader br = new BufferedReader(new InputStreamReader(is));
-                String action = br.readLine();
+                InputStream is;
+                String action="";
+                try {
+                        is = joinedSockets[i].getInputStream();
+                        BufferedReader br = new BufferedReader(new InputStreamReader(is));
+                        action = br.readLine();
+                } catch (Exception e) {
+                        System.out.println("Line: 371");
+                }
+                System.out.println(action);
                 if(action.contains("Bet")) {
+                        System.out.println("Bet received");
                         int thisBet = Integer.parseInt(action.split(" ")[1]);
-                        if(thisBet<=currentBet) {
+                        if(thisBet<currentBet) {
                                 unicast(i, "Bet must be greater than "+currentBet+".\n");
                                 i--;
                                 continue;
                         }
-                        else if(thisBet>=players[i].getPool()) {
+                        else if(thisBet>players[i].getPool()) {
                                 unicast(i, "You don't have enough money. You have "+players[i].getPool()+".\n");
                                 i--;
                                 continue;
@@ -375,7 +460,7 @@ public int betRound(int roundSum){
                         }
                 }
                 else if(action.contains("Call")) {
-                        if(currentBet>=players[i].getPool()) {
+                        if(currentBet>players[i].getPool()) {
                                 broadcast("Player "+players[i].getName()+" has went all in.\n");
                                 currentPool += players[i].getPool();
                                 players[i].updatePool(-players[i].getPool());
@@ -391,6 +476,12 @@ public int betRound(int roundSum){
                 else if(action.contains("Fold")) {
                         broadcast("Player "+players[i].getName()+" has folded.\n");
                         players[i].fold();
+                        numFolded++;
+                }
+                else {
+                        unicast(i, "Invalid Response.\n");
+                        i--;
+                        continue;
                 }
         }
         return currentPool;
@@ -400,7 +491,7 @@ public static void unicast(int playerId, String toUnicast){
                 DataOutputStream os = new DataOutputStream(joinedSockets[playerId].getOutputStream());
                 os.writeBytes(toUnicast+"\n");
         } catch (Exception e) {
-                System.out.println(e);
+                System.out.println("Line: 438");
         }
 }
 public static void broadcast(String toBroadcast){
@@ -423,7 +514,7 @@ public void run(){
         try {
                 listenToPlayer();
         } catch (Exception e) {
-                System.out.println(e);
+                System.out.println("Line: 461");
         }
 }
 private void listenToPlayer() throws Exception {
@@ -441,17 +532,17 @@ private void listenToPlayer() throws Exception {
         thisPlayer = new player(socket.getInetAddress().getHostAddress(),name);
         os.writeBytes("You have successfully joined the game.\n");
         game.addPlayer(thisPlayer, socket);
-        boolean close = false;
-        while(true) {
-                String response = br.readLine();
-                System.out.print(response);
-                if(response.equals("quit")) {
-                        game.broadcast("Player "+thisPlayer.getName()+"has quit."+CRLF);
-                        break;
-                }
-        }
-        os.close();
-        br.close();
-        socket.close();
+        // boolean close = false;
+        // while(true) {
+        //         String response = br.readLine();
+        //         System.out.print(response);
+        //         if(response.equals("quit")) {
+        //                 game.broadcast("Player "+thisPlayer.getName()+"has quit."+CRLF);
+        //                 break;
+        //         }
+        // }
+        // os.close();
+        // br.close();
+        // socket.close();
 }
 }
